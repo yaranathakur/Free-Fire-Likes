@@ -1,6 +1,7 @@
 import streamlit as st
 import http.client
 import json
+import pandas as pd
 
 st.title("Free Fire User Info")
 
@@ -23,7 +24,40 @@ if st.button("Fetch Details"):
         data = res.read()
 
         result = json.loads(data.decode("utf-8"))
+        
+        if result["error"] == False:
+            # Extract relevant info
+            basic_info = result["data"]["basicInfo"]
+            profile_info = result["data"]["profileInfo"]
+            pet_info = result["data"]["petInfo"]
+            social_info = result["data"]["socialInfo"]
+            clan_info = result["data"]["clanBasicInfo"]
+            credit_score_info = result["data"]["creditScoreInfo"]
 
-        st.write(result)
+            # Prepare data for tabular format
+            user_data = {
+                "Account ID": [basic_info["accountId"]],
+                "Nickname": [basic_info["nickname"]],
+                "Region": [basic_info["region"]],
+                "Level": [basic_info["level"]],
+                "Rank": [basic_info["rank"]],
+                "Last Login": [basic_info["lastLoginAt"]],
+                "Avatar": [basic_info["avatars"][0]],  # First avatar image
+                "Pet Name": [pet_info["name"]],
+                "Pet Level": [pet_info["level"]],
+                "Social Signature": [social_info["signature"]],
+                "Clan Name": [clan_info["clanName"]],
+                "Clan Level": [clan_info["clanLevel"]],
+                "Clan Members": [clan_info["memberNum"]],
+                "Credit Score": [credit_score_info["creditScore"]],
+                "Diamond Cost": [result["data"]["diamondCostRes"]["diamondCost"]],
+            }
+
+            # Display the table
+            df = pd.DataFrame(user_data)
+
+            st.write(df)
+        else:
+            st.error("❌ Failed to fetch data. Please check the User ID or region.")
     else:
         st.warning("Please enter a User ID.")
