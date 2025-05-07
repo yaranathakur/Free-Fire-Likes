@@ -1,71 +1,122 @@
 import streamlit as st
-import http.client
-import json
-import pandas as pd
+import requests
 
-st.title("Free Fire User Info")
+st.title("Free Fire Player Info Checker")
 
+# Input for user ID
 user_id = st.text_input("Enter Free Fire User ID:")
-region = st.selectbox("Select Region", ["SG", "IN", "BR", "US", "ID"])
 
-if st.button("Fetch Details"):
+if st.button("Get Player Info"):
     if user_id:
-        conn = http.client.HTTPSConnection("id-game-checker.p.rapidapi.com")
-
+        url = f"https://id-game-checker.p.rapidapi.com/ff-player-info/{user_id}/IN"
         headers = {
-            'x-rapidapi-key': "2e0afea4ffmshf51a18f74d31147p1d7caejsnf5b1a0282bc5",
-            'x-rapidapi-host': "id-game-checker.p.rapidapi.com"
+            "x-rapidapi-key": "2e0afea4ffmshf51a18f74d31147p1d7caejsnf5b1a0282bc5",
+            "x-rapidapi-host": "id-game-checker.p.rapidapi.com"
         }
 
-        url = f"/ff-player-info/{user_id}/{region}"
-        conn.request("GET", url, headers=headers)
+        response = requests.get(url, headers=headers)
 
-        res = conn.getresponse()
-        data = res.read()
+        if response.status_code == 200:
+            data = response.json()
+            if not data["error"]:
+                # Basic Info
+                info = data["data"]["basicInfo"]
+                # Profile Info
+                profile = data["data"]["profileInfo"]
+                # Clan Info
+                clan = data["data"].get("clanBasicInfo", {})
+                # Pet Info
+                pet = data["data"].get("petInfo", {})
+                # Social Info
+                social = data["data"]["socialInfo"]
+                # Diamond Info
+                diamond = data["data"].get("diamondCostRes", {})
+                # Credit Score Info
+                credit_score = data["data"].get("creditScoreInfo", {})
 
-        result = json.loads(data.decode("utf-8"))
-        
-        if result["error"] == False:
-            # Extract relevant info
-            basic_info = result["data"]["basicInfo"]
-            profile_info = result["data"]["profileInfo"]
-            pet_info = result["data"]["petInfo"]
-            social_info = result["data"]["socialInfo"]
-            clan_info = result["data"]["clanBasicInfo"]
-            credit_score_info = result["data"]["creditScoreInfo"]
+                # Display all sections
+                st.subheader("Basic Info")
+                st.image(info["avatars"][0], caption=f"Avatar of {info['nickname']}", width=150)
+                st.write(f"**Nickname:** {info['nickname']}")
+                st.write(f"**Account ID:** {info['accountId']}")
+                st.write(f"**Account Type:** {info['accountType']}")
+                st.write(f"**Region:** {info['region']}")
+                st.write(f"**Level:** {info['level']}")
+                st.write(f"**Experience:** {info['exp']}")
+                st.write(f"**Rank:** {info['rank']}")
+                st.write(f"**Rank Points:** {info['rankingPoints']}")
+                st.write(f"**Max Rank:** {info['maxRank']}")
+                st.write(f"**CS Rank:** {info['csRank']}")
+                st.write(f"**CS Ranking Points:** {info['csRankingPoints']}")
+                st.write(f"**Elite Pass:** {'Yes' if info['hasElitePass'] else 'No'}")
+                st.write(f"**Likes:** {info['liked']}")
+                st.write(f"**Badges Count:** {info['badgeCnt']}")
+                st.write(f"**Badge ID:** {info['badgeId']}")
+                st.write(f"**Weapon Skins Showed:** {info['weaponSkinShows']}")
+                st.write(f"**Account Created At (Epoch):** {info['createAt']}")
+                st.write(f"**Last Login (Epoch):** {info['lastLoginAt']}")
+                st.write(f"**External Icon Status:** {info['externalIconInfo']['status']}")
+                st.write(f"**Release Version:** {info['releaseVersion']}")
+                st.write(f"**Season ID:** {info['seasonId']}")
+                
+                # Display Clothes
+                st.subheader("Clothes Info")
+                for idx, img_url in enumerate(profile["clothes"]["images"]):
+                    st.image(img_url, caption=f"Clothing {idx+1}", width=150)
 
-            # Prepare data for vertical table
-            user_data = {
-                "Account ID": basic_info["accountId"],
-                "Nickname": basic_info["nickname"],
-                "Region": basic_info["region"],
-                "Level": basic_info["level"],
-                "Rank": basic_info["rank"],
-                "Ranking Points": basic_info["rankingPoints"],
-                "Max Rank": basic_info["maxRank"],
-                "Last Login (Timestamp)": basic_info["lastLoginAt"],
-                "Avatar": basic_info["avatars"][0],  # First avatar image
-                "Pet Name": pet_info["name"],
-                "Pet Level": pet_info["level"],
-                "Pet Exp": pet_info["exp"],
-                "Pet Skin ID": pet_info["skinId"],
-                "Pet Selected Skill ID": pet_info["selectedSkillId"],
-                "Social Language": social_info["language"],
-                "Social Signature": social_info["signature"],
-                "Clan Name": clan_info["clanName"] if clan_info else "N/A",
-                "Clan Level": clan_info["clanLevel"] if clan_info else "N/A",
-                "Clan Capacity": clan_info["capacity"] if clan_info else "N/A",
-                "Clan Members": clan_info["memberNum"] if clan_info else "N/A",
-                "Credit Score": credit_score_info["creditScore"],
-                "Diamond Cost": result["data"]["diamondCostRes"]["diamondCost"],
-            }
+                # Clan Info
+                st.subheader("Clan Info")
+                if clan:
+                    st.write(f"**Clan ID:** {clan['clanId']}")
+                    st.write(f"**Clan Name:** {clan['clanName']}")
+                    st.write(f"**Clan Level:** {clan['clanLevel']}")
+                    st.write(f"**Clan Capacity:** {clan['capacity']}")
+                    st.write(f"**Clan Members:** {clan['memberNum']}/{clan['capacity']}")
+                else:
+                    st.write("No clan info available.")
 
-            # Convert the dictionary into a DataFrame for a vertical table
-            df = pd.DataFrame(list(user_data.items()), columns=["Key", "Value"])
+                # Profile Info
+                st.subheader("Profile Info")
+                st.write(f"**Preferred Mode:** {social['modePrefer']}")
+                st.write(f"**Active Time:** {social['timeActive']}")
+                st.write(f"**Language:** {social['language']}")
+                st.write(f"**Signature:** {social['signature']}")
+                st.write(f"**Rank Show:** {social['rankShow']}")
 
-            # Display the vertical table
-            st.write(df)
+                # Pet Info
+                st.subheader("Pet Info")
+                if pet:
+                    st.write(f"**Pet Name:** {pet['name']}")
+                    st.write(f"**Pet Level:** {pet['level']}")
+                    st.write(f"**Pet Exp:** {pet['exp']}")
+                    st.write(f"**Pet Skin ID:** {pet['skinId']}")
+                    st.write(f"**Selected Skill ID:** {pet['selectedSkillId']}")
+                    # Display pet image (if available)
+                    pet_img_url = f"https://cdn.neferbyte.com/api/v1/ff/pet/{pet['skinId']}/png"
+                    st.image(pet_img_url, caption=f"Pet {pet['name']}", width=150)
+                else:
+                    st.write("No pet info available.")
+
+                # Diamond Cost Info
+                st.subheader("Diamond Info")
+                if diamond:
+                    st.write(f"**Diamond Cost:** {diamond['diamondCost']}")
+                else:
+                    st.write("No diamond info available.")
+                
+                # Credit Score Info
+                st.subheader("Credit Score Info")
+                if credit_score:
+                    st.write(f"**Credit Score:** {credit_score['creditScore']}")
+                    st.write(f"**Reward State:** {credit_score['rewardState']}")
+                    st.write(f"**Periodic Summary Start Time (Epoch):** {credit_score['periodicSummaryStartTime']}")
+                    st.write(f"**Periodic Summary End Time (Epoch):** {credit_score['periodicSummaryEndTime']}")
+                else:
+                    st.write("No credit score info available.")
+                    
+            else:
+                st.error("User not found.")
         else:
-            st.error("❌ Failed to fetch data. Please check the User ID or region.")
+            st.error("Failed to fetch data. Please check the ID or try again later.")
     else:
-        st.warning("Please enter a User ID.")
+        st.warning("Please enter a user ID.")
